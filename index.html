@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+
+  <!-- ============================================
+       CONFIGURATION - EDIT THESE VALUES
+       ============================================ -->
+  <script>
+    const CONFIG = {
+      // ========== BACKEND SETTINGS ==========
+      BACKEND_URL: "https://widget.numbero.org",
+
+      ASSISTANT_ID: "assistant_conveyancing_ai_elevenlabs_1234",
+
+      // ========== BRANDING - TEXT ==========
+      PAGE_TITLE: "Conveyancing Voice Assistant",
+      BADGE_TEXT: "Conveyancing AI",
+      TITLE: "Talk to a Conveyancer.",
+      SUBTITLE: "Instant voice help for contract drafting, property transfers and settlements.",
+
+      // Button text
+      START_BUTTON_TEXT: "Speak to an Expert",
+      END_BUTTON_TEXT: "End Call",
+
+      // Status messages
+      STATUS_READY: "Ready to connect",
+      STATUS_CONNECTED: "Conveyancer connected",
+
+      // Transcript messages
+      GREETING_TEXT: "Hi, I'm your Conveyancing Assistant. How can I help with your property matter today?",
+      CONNECTING_TEXT: "Connecting to a conveyancer...",
+      CONNECTED_TEXT: "Connected. How can we assist you?",
+      AGENT_READY_TEXT: "Conveyancer is ready.",
+      DISCONNECTED_TEXT: "Call ended",
+      CONNECTION_FAILED_TEXT: "Connection failed. Please try again.",
+
+      // ========== BRANDING - COLORS ==========
+      PRIMARY_COLOR: "#E8725A",        // Coral accent (conveyancing.com.au)
+      ACCENT_COLOR: "#E8725A",         // Coral for UI elements
+      ACCENT_COLOR_HOVER: "#D4604A",   // Hover state
+      END_BUTTON_COLOR: "#EF4444",     // Clear end call color
+      END_BUTTON_HOVER: "#DC2626",     // End button hover
+      TEXT_COLOR: "#f1f5f9",           // Light text on dark
+      SUBTITLE_COLOR: "#94a3b8",       // Muted light subtitle
+      SUCCESS_COLOR: "#10B981",        // Connected success state
+    };
+  </script>
+
+
+  <!-- ============================================ -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Voice AI Widget</title>
+
+  <style>
+    :root {
+      --primary-color: #E8725A;
+      --accent-color: #E8725A;
+      --accent-color-hover: #D4604A;
+      --end-button-color: #EF4444;
+      --end-button-hover: #DC2626;
+      --text-color: #f1f5f9;
+      --subtitle-color: #94a3b8;
+      --success-color: #10B981;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      height: 100%;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: transparent;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    /* Responsive widget container */
+    .widget-container {
+      width: 100%;
+      height: 66.67%;
+      max-height: 520px;
+      background: #1B2A3D;
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(232, 114, 90, 0.15);
+      border-radius: 32px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .gradient-bg {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(27, 42, 61, 0.3) 0%, rgba(27, 42, 61, 0.1) 100%);
+      z-index: 0;
+    }
+
+    .header {
+      position: relative;
+      z-index: 10;
+      padding: clamp(16px, 4vw, 32px) clamp(16px, 4vw, 32px) 0;
+      flex-shrink: 0;
+    }
+
+    .header-logo {
+      height: clamp(32px, 8vw, 40px);
+      width: auto;
+      margin-bottom: clamp(12px, 3vw, 24px);
+    }
+
+    .title {
+      font-size: clamp(1.75rem, 6vw, 2.5rem);
+      font-weight: 400;
+      color: var(--text-color);
+      line-height: 1.2;
+      margin-bottom: clamp(8px, 2vw, 16px);
+      font-family: Georgia, 'Times New Roman', serif;
+      word-wrap: break-word;
+    }
+
+    .subtitle {
+      color: var(--subtitle-color);
+      font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+      line-height: 1.6;
+      max-width: 100%;
+      word-wrap: break-word;
+      padding-right: 8px;
+    }
+
+    .visualizer-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+      padding: clamp(16px, 3vw, 32px);
+      position: relative;
+      z-index: 10;
+      flex: 1 1 auto;
+    }
+
+    .pulsing-circle-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Ripple effects - only visible when active */
+    .ripple {
+      position: absolute;
+      inset: 0;
+      background: color-mix(in srgb, var(--primary-color) 20%, transparent);
+      border-radius: 50%;
+      opacity: 0;
+      transform: scale(1);
+    }
+
+    .ripple.active {
+      animation: ripple-animation 2s ease-out infinite;
+    }
+
+    .ripple.active.delayed {
+      animation-delay: 0.5s;
+    }
+
+    @keyframes ripple-animation {
+      0% {
+        opacity: 0;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.4;
+      }
+
+      100% {
+        opacity: 0;
+        transform: scale(2);
+      }
+    }
+
+    .ripple.delayed.active {
+      animation: ripple-animation-small 2s ease-out infinite;
+      animation-delay: 0.5s;
+    }
+
+    @keyframes ripple-animation-small {
+      0% {
+        opacity: 0;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.4;
+      }
+
+      100% {
+        opacity: 0;
+        transform: scale(1.5);
+      }
+    }
+
+    .core-circle {
+      width: clamp(96px, 20vw, 128px);
+      height: clamp(96px, 20vw, 128px);
+      border-radius: 50%;
+      background: linear-gradient(135deg, #D4604A 0%, #E8725A 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 10;
+      box-shadow: 0 0 30px 5px rgba(232, 114, 90, 0.3);
+      transition: box-shadow 0.3s ease, transform 0.3s ease;
+    }
+
+    .core-circle.active {
+      animation: pulse-circle 1.5s ease-in-out infinite;
+      box-shadow: 0 0 40px 10px color-mix(in srgb, var(--primary-color) 40%, transparent);
+    }
+
+    @keyframes pulse-circle {
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.1);
+      }
+    }
+
+    .visualizer-bars {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      height: clamp(36px, 8vw, 48px);
+    }
+
+    .bar {
+      width: clamp(6px, 1.5vw, 8px);
+      height: clamp(6px, 1.5vw, 8px);
+      background: white;
+      border-radius: 9999px;
+      opacity: 0.9;
+      transition: height 0.3s ease;
+    }
+
+    .bar.active {
+      animation: bar-animation 0.6s ease-in-out infinite alternate;
+    }
+
+    .bar:nth-child(1).active {
+      animation-delay: 0.1s;
+    }
+
+    .bar:nth-child(2).active {
+      animation-delay: 0.2s;
+    }
+
+    .bar:nth-child(3).active {
+      animation-delay: 0.3s;
+    }
+
+    .bar:nth-child(4).active {
+      animation-delay: 0.4s;
+    }
+
+    .bar:nth-child(5).active {
+      animation-delay: 0.5s;
+    }
+
+    @keyframes bar-animation {
+      0% {
+        height: 10px;
+      }
+
+      100% {
+        height: clamp(24px, 6vw, 32px);
+      }
+    }
+
+    .status-badge {
+      white-space: nowrap;
+      margin-bottom: clamp(16px, 4vw, 24px);
+      padding: 6px 16px;
+      border-radius: 9999px;
+      font-size: clamp(12px, 2.5vw, 14px);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .status-badge.disconnected {
+      background: rgba(148, 163, 184, 0.1);
+      color: #94a3b8;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .status-badge.connected {
+      background: rgba(16, 185, 129, 0.1);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .status-dot.disconnected {
+      background: #64748b;
+    }
+
+    .status-dot.connected {
+      background: var(--success-color);
+      animation: pulse-dot 1s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    .action-area {
+      padding: clamp(16px, 4vw, 32px);
+      position: relative;
+      z-index: 10;
+      background: rgba(20, 32, 48, 0.6);
+      border-top: 1px solid rgba(27, 42, 61, 0.4);
+      backdrop-filter: blur(10px);
+      flex-shrink: 0;
+    }
+
+    .transcript-area {
+      text-align: center;
+      margin-bottom: clamp(16px, 4vw, 32px);
+      min-height: clamp(48px, 10vw, 64px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 clamp(8px, 2vw, 16px);
+    }
+
+    .transcript-text {
+      font-size: clamp(1rem, 2.8vw, 1.25rem);
+      font-weight: 500;
+      color: var(--text-color);
+      transition: opacity 0.3s ease;
+      word-wrap: break-word;
+      line-height: 1.4;
+    }
+
+    .call-button {
+      width: 100%;
+      padding: clamp(12px, 3vw, 16px);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      font-size: clamp(0.95rem, 2.5vw, 1.1rem);
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+
+    .call-button:hover {
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+      transform: translateY(-1px);
+    }
+
+    .call-button:active {
+      transform: scale(0.98);
+    }
+
+    .call-button.start {
+      background: linear-gradient(135deg, #D4604A 0%, #E8725A 100%);
+      color: #1B2A3D;
+    }
+
+    .call-button.start:hover {
+      background: linear-gradient(135deg, #C05040 0%, #D4604A 100%);
+    }
+
+    .call-button.end {
+      background: var(--end-button-color);
+      color: white;
+    }
+
+    .call-button.end:hover {
+      background: var(--end-button-hover);
+    }
+
+    .call-button svg {
+      width: clamp(16px, 4vw, 20px);
+      height: clamp(16px, 4vw, 20px);
+    }
+
+    .error-message {
+      margin-top: 16px;
+      padding: 12px;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 12px;
+      color: #f87171;
+      font-size: clamp(12px, 2.5vw, 14px);
+      text-align: center;
+      word-wrap: break-word;
+    }
+
+    .minimize-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.1);
+      color: #94a3b8;
+      font-size: 18px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, color 0.2s;
+      line-height: 1;
+    }
+
+    .minimize-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
+
+    /* Hidden audio element */
+    #audioOutput {
+      display: none;
+    }
+
+    /* Tablet-sized iframes (420px wide, ~680px tall) */
+    @media (max-height: 700px) {
+      .header {
+        padding-top: 16px;
+        padding-bottom: 0;
+      }
+
+      .header-logo {
+        height: 30px;
+        margin-bottom: 12px;
+      }
+
+      .title {
+        font-size: 1.75rem;
+        margin-bottom: 8px;
+      }
+
+      .subtitle {
+        font-size: 0.9rem;
+        line-height: 1.4;
+      }
+
+      .visualizer-area {
+        padding: 16px;
+      }
+
+      .status-badge {
+        margin-bottom: 12px;
+      }
+
+      .core-circle {
+        width: 100px;
+        height: 100px;
+      }
+
+      .action-area {
+        padding: 20px;
+      }
+
+      .transcript-area {
+        margin-bottom: 16px;
+        min-height: 48px;
+      }
+
+      .call-button {
+        padding: 12px;
+      }
+    }
+
+    /* Small mobile iframes (≤390px wide or ≤600px tall) */
+    @media (max-width: 400px), (max-height: 600px) {
+      .widget-container {
+        border-radius: 20px;
+      }
+
+      .header {
+        padding: 12px 16px 0;
+      }
+
+      .header-logo {
+        height: 28px;
+        margin-bottom: 10px;
+      }
+
+      .title {
+        font-size: 1.5rem;
+        margin-bottom: 6px;
+      }
+
+      .subtitle {
+        font-size: 0.85rem;
+        line-height: 1.4;
+      }
+
+      .visualizer-area {
+        padding: 12px;
+      }
+
+      .status-badge {
+        margin-bottom: 10px;
+        padding: 4px 12px;
+        font-size: 12px;
+      }
+
+      .core-circle {
+        width: 88px;
+        height: 88px;
+      }
+
+      .visualizer-bars {
+        height: 32px;
+      }
+
+      .action-area {
+        padding: 16px;
+      }
+
+      .transcript-area {
+        margin-bottom: 12px;
+        min-height: 40px;
+      }
+
+      .transcript-text {
+        font-size: 0.95rem;
+      }
+
+      .call-button {
+        padding: 11px;
+        border-radius: 12px;
+        font-size: 0.95rem;
+      }
+    }
+
+    /* Very short iframes */
+    @media (max-height: 500px) {
+      .header-logo {
+        height: 24px;
+        margin-bottom: 8px;
+      }
+
+      .subtitle {
+        display: none;
+      }
+
+      .visualizer-area {
+        padding: 8px;
+      }
+
+      .core-circle {
+        width: 72px;
+        height: 72px;
+      }
+
+      .visualizer-bars {
+        height: 28px;
+        gap: 3px;
+      }
+
+      .status-badge {
+        margin-bottom: 8px;
+      }
+
+      .action-area {
+        padding: 12px;
+      }
+
+      .transcript-area {
+        margin-bottom: 8px;
+        min-height: 32px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <audio id="audioOutput" autoplay></audio>
+
+  <div class="widget-container">
+    <div class="gradient-bg"></div>
+    <button class="minimize-btn" id="minimizeBtn" title="Minimize">✕</button>
+
+    <!-- Header -->
+    <div class="header">
+      <img src="logo.webp" alt="Logo" class="header-logo">
+      <h1 class="title">Talk to a Conveyancer.</h1>
+      <p class="subtitle">Instant voice help for contract drafting, property transfers and settlements.</p>
+    </div>
+
+    <!-- Visualizer Area -->
+    <div class="visualizer-area">
+      <!-- Status badge -->
+      <div class="status-badge disconnected" id="statusBadge">
+        <div class="status-dot disconnected" id="statusDot"></div>
+        <span id="statusText">Ready to connect</span>
+      </div>
+
+      <div class="pulsing-circle-container">
+        <!-- Ripple effects -->
+        <div class="ripple" id="ripple1"></div>
+        <div class="ripple delayed" id="ripple2"></div>
+
+        <!-- Core circle -->
+        <div class="core-circle" id="coreCircle">
+          <div class="visualizer-bars">
+            <div class="bar" id="bar1"></div>
+            <div class="bar" id="bar2"></div>
+            <div class="bar" id="bar3"></div>
+            <div class="bar" id="bar4"></div>
+            <div class="bar" id="bar5"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Area -->
+    <div class="action-area">
+      <div class="transcript-area">
+        <p class="transcript-text" id="transcriptText">Hi, I'm your Conveyancing Assistant. How can I help with your property matter today?</p>
+      </div>
+
+      <button class="call-button start" id="callButton" onclick="toggleCall()">
+        <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+          <line x1="12" x2="12" y1="19" y2="22" />
+        </svg>
+        <svg id="phoneIcon" style="display: none;" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path
+            d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+        </svg>
+        <span id="buttonText">Speak to an Expert</span>
+      </button>
+
+      <div class="error-message" id="errorMessage" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Bundled Pipecat dependencies -->
+  <script src="widget-bundle.js"></script>
+
+  <script>
+    // Get Pipecat from window (loaded by widget-bundle.js)
+    const { PipecatClient, RTVIEvent, WebSocketTransport } = window;
+
+    // State
+    let isConnected = false;
+    let pipecatClient = null;
+    let micStream = null;
+    const audioElement = document.getElementById('audioOutput');
+
+    // DOM Elements
+    const callButton = document.getElementById('callButton');
+    const buttonText = document.getElementById('buttonText');
+    const micIcon = document.getElementById('micIcon');
+    const phoneIcon = document.getElementById('phoneIcon');
+    const transcriptText = document.getElementById('transcriptText');
+    const statusBadge = document.getElementById('statusBadge');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const coreCircle = document.getElementById('coreCircle');
+    const ripple1 = document.getElementById('ripple1');
+    const ripple2 = document.getElementById('ripple2');
+    const bars = [
+      document.getElementById('bar1'),
+      document.getElementById('bar2'),
+      document.getElementById('bar3'),
+      document.getElementById('bar4'),
+      document.getElementById('bar5')
+    ];
+    const errorMessage = document.getElementById('errorMessage');
+
+    // Apply CONFIG branding on page load
+    function applyBranding() {
+      // Apply CSS variables from CONFIG
+      const root = document.documentElement;
+      root.style.setProperty('--primary-color', CONFIG.PRIMARY_COLOR);
+      root.style.setProperty('--accent-color', CONFIG.ACCENT_COLOR);
+      root.style.setProperty('--accent-color-hover', CONFIG.ACCENT_COLOR_HOVER);
+      root.style.setProperty('--end-button-color', CONFIG.END_BUTTON_COLOR);
+      root.style.setProperty('--end-button-hover', CONFIG.END_BUTTON_HOVER);
+      root.style.setProperty('--text-color', CONFIG.TEXT_COLOR);
+      root.style.setProperty('--subtitle-color', CONFIG.SUBTITLE_COLOR);
+      root.style.setProperty('--success-color', CONFIG.SUCCESS_COLOR);
+
+      // Apply text content from CONFIG
+      document.title = CONFIG.PAGE_TITLE;
+      document.querySelector('.title').textContent = CONFIG.TITLE;
+      document.querySelector('.subtitle').textContent = CONFIG.SUBTITLE;
+      buttonText.textContent = CONFIG.START_BUTTON_TEXT;
+      statusText.textContent = CONFIG.STATUS_READY;
+      transcriptText.textContent = CONFIG.GREETING_TEXT;
+    }
+
+    // Initialize branding
+    applyBranding();
+
+    // Update UI based on connection state
+    function updateUI(connected) {
+      isConnected = connected;
+
+      if (connected) {
+        callButton.className = 'call-button end';
+        buttonText.textContent = CONFIG.END_BUTTON_TEXT;
+        micIcon.style.display = 'none';
+        phoneIcon.style.display = 'block';
+
+        statusBadge.className = 'status-badge connected';
+        statusDot.className = 'status-dot connected';
+        statusText.textContent = CONFIG.STATUS_CONNECTED;
+
+        coreCircle.classList.add('active');
+        ripple1.classList.add('active');
+        ripple2.classList.add('active');
+        bars.forEach(bar => bar.classList.add('active'));
+      } else {
+        callButton.className = 'call-button start';
+        buttonText.textContent = CONFIG.START_BUTTON_TEXT;
+        micIcon.style.display = 'block';
+        phoneIcon.style.display = 'none';
+
+        statusBadge.className = 'status-badge disconnected';
+        statusDot.className = 'status-dot disconnected';
+        statusText.textContent = CONFIG.STATUS_READY;
+
+        coreCircle.classList.remove('active');
+        ripple1.classList.remove('active');
+        ripple2.classList.remove('active');
+        bars.forEach(bar => bar.classList.remove('active'));
+      }
+    }
+
+    function setTranscript(text) {
+      transcriptText.textContent = text;
+    }
+
+    function showError(message) {
+      errorMessage.textContent = message;
+      errorMessage.style.display = 'block';
+      setTimeout(() => {
+        errorMessage.style.display = 'none';
+      }, 5000);
+    }
+
+    async function connect() {
+      try {
+        errorMessage.style.display = 'none';
+
+        const config = {
+          transport: new WebSocketTransport(),
+          enableMic: true,
+          enableCam: false,
+          callbacks: {
+            onConnected: () => {
+              updateUI(true);
+              setTranscript(CONFIG.CONNECTED_TEXT);
+            },
+            onDisconnected: () => {
+              updateUI(false);
+              setTranscript(CONFIG.DISCONNECTED_TEXT);
+            },
+            onBotReady: () => {
+              setTranscript(CONFIG.AGENT_READY_TEXT);
+            },
+            onUserTranscript: (data) => {
+              if (data.final) {
+                const msg = `You: ${data.text}`;
+                setTranscript(msg);
+                console.log(msg);
+              }
+            },
+            onBotTranscript: (data) => {
+              const msg = `Agent: ${data.text}`;
+              setTranscript(msg);
+              console.log(msg);
+            },
+            onError: (err) => {
+              console.error("Pipecat error:", err);
+              showError(err?.message || "Unknown error");
+            }
+          }
+        };
+
+        const client = new PipecatClient(config);
+        pipecatClient = client;
+
+        // Handle audio tracks
+        client.on(RTVIEvent.TrackStarted, (track, participant) => {
+          if (!participant?.local && track.kind === "audio" && audioElement) {
+            const stream = new MediaStream([track]);
+            audioElement.srcObject = stream;
+          }
+        });
+
+        // Acquire mic with browser-native noise suppression (requires HTTPS)
+        setTranscript("Initializing microphone...");
+        if (navigator.mediaDevices?.getUserMedia) {
+          try {
+            micStream = await navigator.mediaDevices.getUserMedia({
+              audio: {
+                noiseSuppression: true,
+                echoCancellation: true,
+                autoGainControl: true,
+              },
+            });
+          } catch (e) {
+            // Noise suppression unavailable, continue without it
+            console.warn("Noise suppression unavailable:", e);
+          }
+        }
+
+        setTranscript("Initializing devices...");
+        await client.initDevices();
+
+        setTranscript(CONFIG.CONNECTING_TEXT);
+        const response = await fetch(`${CONFIG.BACKEND_URL}/frontend/connect`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ assistant_id: CONFIG.ASSISTANT_ID })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to get WebSocket URL: ${response.status}`);
+        }
+
+        const { ws_url } = await response.json();
+        await client.connect({ wsUrl: ws_url });
+
+      } catch (err) {
+        console.error("Connection error:", err);
+        showError(err.message || "Connection failed");
+        updateUI(false);
+        setTranscript(CONFIG.CONNECTION_FAILED_TEXT);
+      }
+    }
+
+    async function disconnect() {
+      if (pipecatClient) {
+        try {
+          await pipecatClient.disconnect();
+        } catch (err) {
+          console.error("Disconnect error:", err);
+        }
+        pipecatClient = null;
+        updateUI(false);
+      }
+      // Stop noise-suppressed mic stream
+      if (micStream) {
+        micStream.getTracks().forEach(t => t.stop());
+        micStream = null;
+      }
+    }
+
+    async function toggleCall() {
+      if (isConnected) {
+        await disconnect();
+      } else {
+        await connect();
+      }
+    }
+
+    // Minimize button - notify parent to collapse widget
+    document.getElementById('minimizeBtn').addEventListener('click', () => {
+      if (pipecatClient) {
+        disconnect();
+      }
+      window.parent.postMessage({ type: 'conveyancing-widget-minimize' }, '*');
+    });
+
+    // Clean up on page unload
+    window.addEventListener('beforeunload', () => {
+      if (pipecatClient) {
+        pipecatClient.disconnect().catch(console.error);
+      }
+      if (micStream) {
+        micStream.getTracks().forEach(t => t.stop());
+      }
+    });
+  </script>
+</body>
+
+</html>
